@@ -111,6 +111,7 @@ export function buildMarketIndex({ entries, npmMap, locales, origin = INDEX_ORIG
   const indexUrl = `${origin}/index.json`
   const skipped = { noNpm: 0, noVersion: 0, noPublishTime: 0, refused: 0 }
   const refused = []
+  const acceptedNames = new Map()
 
   for (const entry of entries) {
     const record = npmMap[entry.url]
@@ -143,7 +144,12 @@ export function buildMarketIndex({ entries, npmMap, locales, origin = INDEX_ORIG
     // the whole index; the caller sees exactly which entry and why.
     try {
       parseMarketIndex({ ...spec, plugins: [plugin] }, indexUrl)
+      // The full index requires unique package names, even across repositories.
+      if (acceptedNames.has(plugin.name)) {
+        throw new Error(`duplicate package ${plugin.name} (already listed by ${acceptedNames.get(plugin.name)})`)
+      }
       spec.plugins.push(plugin)
+      acceptedNames.set(plugin.name, entry.url)
     } catch (error) {
       skipped.refused += 1
       refused.push(`${entry.url}: ${error.message}`)
